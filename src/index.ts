@@ -84,4 +84,33 @@ export class MonkeyFetch {
   }
 }
 
+const fetchConfig = new MonkeyFetch();
 
+fetchConfig.configure({
+  request: (resource, options) => {
+    // add custom request handler
+    // example: add Authorization headers to all requests
+    const newOptions = { ...options };
+    // const { accessToken } = customAuthHook();
+    newOptions.headers = {
+      ...newOptions.headers,
+      Authorization: `Bearer HELLO_WORLD`,
+    };
+    return Promise.resolve([resource, newOptions]);
+  },
+  requestError: (error: Error) => {
+    // add custom request error handler
+    return Promise.reject(error);
+  },
+  response: (response: Response) => {
+    // add custom response handling
+    if (response.status === 401) {
+      throw new Error('Access token expired');
+    }
+    return response;
+  },
+  responseError: (error: Error) => {
+    // add custom response error handling
+    return Promise.reject(error);
+  },
+});
