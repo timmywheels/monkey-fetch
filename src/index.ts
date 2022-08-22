@@ -16,7 +16,7 @@ interface IMonkeyPatchResponse extends Response {
 }
 
 export class MonkeyFetch {
-  map: IMonkeyFetchConfiguration = {
+  interceptors: IMonkeyFetchConfiguration = {
     request: (resource: RequestInfo | URL, options: RequestInit) => Promise.resolve([resource, options]),
     requestError: (error: Error) => Promise.reject(error),
     response: (response: Response) => response,
@@ -43,7 +43,7 @@ export class MonkeyFetch {
       requestError,
       response,
       responseError,
-    } = this.map;
+    } = this.interceptors;
 
     // init promise with original args proceed to monkey-patch
     let monkeyPatchedPromise: Promise<any> = Promise.resolve(args);
@@ -74,7 +74,7 @@ export class MonkeyFetch {
   // public api to configure fetch
   configure(configuration: IMonkeyFetchConfiguration) {
     for (let interceptorKey in configuration) {
-      this.map[interceptorKey] = configuration[interceptorKey];
+      this.interceptors[interceptorKey] = configuration[interceptorKey];
     }
 
     // apply custom config to global fetch method
