@@ -8,7 +8,8 @@ interface IMonkeyFetchResponseConfiguration {
   responseError?: (response: IMonkeyFetchResponse) => Promise<any>;
 }
 
-interface IMonkeyFetchConfiguration extends IMonkeyFetchRequestConfiguration, IMonkeyFetchResponseConfiguration {
+interface IMonkeyFetchConfiguration
+  extends IMonkeyFetchRequestConfiguration, IMonkeyFetchResponseConfiguration {
 }
 
 interface IMonkeyFetchResponse extends Response {
@@ -17,7 +18,7 @@ interface IMonkeyFetchResponse extends Response {
 
 export class MonkeyFetch {
   interceptors: IMonkeyFetchConfiguration = {
-    request: (resource: (RequestInfo | URL), options: RequestInit) => Promise.resolve([resource, options]),
+    request: (resource: (RequestInfo | URL), options: RequestInit): Promise<[(RequestInfo | URL), RequestInit]> => Promise.resolve([resource, options]),
     requestError: (error: Error) => Promise.reject(error),
     response: (response: Response) => response,
     responseError: (response: IMonkeyFetchResponse) => Promise.reject(response),
@@ -45,7 +46,7 @@ export class MonkeyFetch {
       responseError,
     } = this.interceptors;
 
-    // init promise with original args proceed to monkey-patch
+    // init promise with original args, proceed to monkey-patch
     let monkeyPatchedPromise: Promise<any> = Promise.resolve(args);
 
     monkeyPatchedPromise = monkeyPatchedPromise.then(

@@ -1,18 +1,42 @@
-# `monkeyfetch`
+# `@timwheeler/monkey-fetch`
 A monkey-patch library for the native JavaScript `fetch` API, inspired by [`fetch-intercept`](https://www.npmjs.com/package/fetch-intercept).
 
+## Getting Started
+
+### Installation
+```bash
+# npm
+npm install @timwheeler/monkey-fetch
+
+# yarn
+yarn add @timwheeler/monkey-fetch
+```
+
+### Configuration
 ```typescript
+import { MonkeyFetch } from '@timwheeler/monkey-fetch';
+
+const fetchConfig = MonkeyFetch();
+
 fetchConfig.configure({
-  request: (resource, options) => {
+  request: (resource: RequestInfo | URL, options: RequestInit): Promise<[(RequestInfo | URL), RequestInit]> => {
     // add custom request handler
-    
+
     // example: add Authorization headers to all requests
-    const newOptions = { ...options };
-    
+    const newOptions: RequestInit = { ...options };
+
+    // add json content-type to all reqs with a payload
+    if (options.body) {
+      newOptions.headers = {
+        ...newOptions.headers,
+        'Content-Type': 'application/json',
+      }
+    }
+
     // fetch accessToken from local store
     const { accessToken } = localAuthStore();
-    
-    // add auth token to all fetch requests
+
+    // add auth header to all fetch requests
     newOptions.headers = {
       ...newOptions.headers,
       Authorization: `Bearer ${accessToken}`,
@@ -25,6 +49,7 @@ fetchConfig.configure({
   },
   response: (response: Response) => {
     // add custom response handling
+    
     // example: check if response is a 401, if so
     // reject and invoke response error handler
     if (response.status === 401) {
@@ -33,6 +58,8 @@ fetchConfig.configure({
     return response;
   },
   responseError: async (response: IMonkeyFetchResponse) => {
+    // add custom response error handling
+
     const { request } = response;
     // example: if response returned 401
     // fetch a new accessToken
@@ -40,26 +67,21 @@ fetchConfig.configure({
 
       // your custom methods for handling accessToken
       const { accessToken, refreshToken, setAccessToken } = localAuthStore();
-      
+
       const res = await fetch('http://localhost:5000/api/v1/auth/refresh', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ refreshToken })
       });
 
       // parse the response from your auth endpoint
       const { accessToken: newAccessToken } = await res.json();
-
-      
-      setAccessToken(accessToken);
+      setAccessToken(newAccessToken);
 
       // retry the original request
       const originalRequest = request.clone();
       return await fetch(originalRequest, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${newAccessToken}`,
         }
       });
     }

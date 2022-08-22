@@ -1,6 +1,6 @@
 {
   "name": "@timwheeler/monkey-fetch",
-  "version": "1.0.217",
+  "version": "1.0.218",
   "description": "Monkey-patch library for the native fetch API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
