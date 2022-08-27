@@ -55,9 +55,9 @@ export class MonkeyFetch {
     this.debugLog('Initial Request Args:', args);
     const { request, requestError } = this.interceptors;
     try {
-      return Promise.resolve(request(...args));
+      return request(...args);
     } catch (err) {
-      return Promise.reject(requestError(err));
+      return requestError(err);
     }
   }
 
@@ -68,15 +68,16 @@ export class MonkeyFetch {
    * @returns {Promise<IMonkeyFetchResponse>} - the Promise containing the response with interceptors applied
    */
   private async sendInterceptedRequest(fetch: Function, args: [(RequestInfo | URL), RequestInit]): Promise<IMonkeyFetchResponse> {
-    const monkeyFetchRequest = new Request(...args);
+    const interceptedRequest = new Request(...args);
     try {
-      const monkeyFetchResponse: IMonkeyFetchResponse = await fetch(monkeyFetchRequest);
-      monkeyFetchResponse.request = monkeyFetchRequest;
-      this.debugLog('Intercepted Request:', monkeyFetchRequest);
-      return Promise.resolve(monkeyFetchResponse);
+      const resolvedResponse: IMonkeyFetchResponse = await fetch(interceptedRequest);
+      resolvedResponse.request = interceptedRequest;
+      this.debugLog('Intercepted Request:', interceptedRequest);
+      this.debugLog('Resolved Response:', resolvedResponse);
+      return resolvedResponse;
     } catch (error) {
-      error.request = monkeyFetchRequest;
-      return Promise.reject(error);
+      error.request = interceptedRequest;
+      return error;
     }
   }
 
@@ -85,12 +86,12 @@ export class MonkeyFetch {
    * @param {IMonkeyFetchResponse} initialResponse - the initial, unaltered response before interceptors are applied
    * @returns {Promise<IMonkeyFetchResponse>} - the response with interceptors applied
   */
-  private applyResponseInterceptors(initialResponse: IMonkeyFetchResponse): Promise<IMonkeyFetchResponse> {
+  private async applyResponseInterceptors(initialResponse: IMonkeyFetchResponse): Promise<IMonkeyFetchResponse> {
     const { response, responseError } = this.interceptors;
     try {
-      const interceptedResponsePromise = response(initialResponse);
-      this.debugLog('Intercepted Response:', interceptedResponsePromise);
-      return Promise.resolve(interceptedResponsePromise);
+      const monkeyFetchResponse = response(initialResponse);
+      this.debugLog('Intercepted Response:', monkeyFetchResponse);
+      return monkeyFetchResponse;
     } catch (err) {
       return responseError(err);
     }
@@ -115,7 +116,7 @@ export class MonkeyFetch {
    */
   private debugLog(...args: any): void {
     if (this.debug) {
-      console.debug(`[DEBUG] @timwheeler/monkey-fetch | `, ...args);
+      console.warn(`[DEBUG] @timwheeler/monkey-fetch | `, ...args);
     }
   }
 
