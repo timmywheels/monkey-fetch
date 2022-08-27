@@ -51,7 +51,7 @@ export class MonkeyFetch {
    * @param {[(RequestInfo | URL), RequestInit]} args - the request arguments used to create the monkey-patched request
    * @returns {Promise<IMonkeyFetchResponse>} - the Promise containing the request arguments after interceptors have been applied
    */
-  private async applyRequestInterceptors(args: [(RequestInfo | URL), RequestInit]): Promise<[(RequestInfo | URL), RequestInit]> {
+  protected async applyRequestInterceptors(args: [(RequestInfo | URL), RequestInit]): Promise<[(RequestInfo | URL), RequestInit]> {
     this.debugLog('Initial Request Args:', args);
     const { request, requestError } = this.interceptors;
     try {
@@ -67,7 +67,7 @@ export class MonkeyFetch {
    * @param {[(RequestInfo | URL), RequestInit]} args - the request arguments used to create the monkey-patched request
    * @returns {Promise<IMonkeyFetchResponse>} - the Promise containing the response with interceptors applied
    */
-  private async sendInterceptedRequest(fetch: Function, args: [(RequestInfo | URL), RequestInit]): Promise<IMonkeyFetchResponse> {
+  protected async sendInterceptedRequest(fetch: Function, args: [(RequestInfo | URL), RequestInit]): Promise<IMonkeyFetchResponse> {
     const interceptedRequest = new Request(...args);
     try {
       const resolvedResponse: IMonkeyFetchResponse = await fetch(interceptedRequest);
@@ -86,14 +86,14 @@ export class MonkeyFetch {
    * @param {IMonkeyFetchResponse} initialResponse - the initial, unaltered response before interceptors are applied
    * @returns {Promise<IMonkeyFetchResponse>} - the response with interceptors applied
    */
-  private async applyResponseInterceptors(initialResponse: IMonkeyFetchResponse): Promise<IMonkeyFetchResponse> {
+  protected async applyResponseInterceptors(initialResponse: IMonkeyFetchResponse): Promise<IMonkeyFetchResponse> {
     const { response, responseError } = this.interceptors;
     try {
-      const monkeyFetchResponse = response(initialResponse);
-      this.debugLog('Intercepted Response:', monkeyFetchResponse);
-      return monkeyFetchResponse;
+      const interceptedResponse = response(initialResponse);
+      this.debugLog('Intercepted Response:', interceptedResponse);
+      return await interceptedResponse;
     } catch (err) {
-      return responseError(err);
+      return await responseError(err);
     }
   }
 

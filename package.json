@@ -9,8 +9,9 @@
   ],
   "scripts": {
     "start": "node dist/index.js",
-    "prebuild": "npx rimraf dist",
-    "build": "tsc -p tsconfig.json"
+    "prebuild": "rimraf dist",
+    "build": "tsc -p tsconfig.json",
+    "test": "jest"
   },
   "keywords": [
     "fetch",
@@ -28,10 +29,27 @@
   "license": "ISC",
   "dependencies": {
     "node-fetch": "2.6.7",
-    "typescript": "4.7.4",
     "whatwg-fetch": "3.6.2"
   },
   "devDependencies": {
-    "@types/node": "18.7.8"
+    "@types/jest": "27.5.0",
+    "@types/node": "18.7.8",
+    "jest": "28.0.0",
+    "prettier": "2.7.1",
+    "rimraf": "3.0.2",
+    "ts-jest": "28.0.0",
+    "typescript": "4.7.4"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src/",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    }
   }
 }
