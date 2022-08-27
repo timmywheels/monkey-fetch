@@ -3,6 +3,14 @@
 A monkey-patch library for the native JavaScript `fetch` API, inspired
 by [`fetch-intercept`](https://www.npmjs.com/package/fetch-intercept).
 
+Common use-cases:
+- Intercept `fetch` requests
+  - Add an `Authorization` header to all `fetch` requests
+  - Add other `headers` (such as `Content-Type`) to all `fetch` requests
+- Fetch a new token pair when an access token expires
+- Retry requests with expired access tokens
+- and more!
+
 ## Getting Started
 
 ### Installation
