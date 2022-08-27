@@ -1,6 +1,6 @@
 {
   "name": "@timwheeler/monkey-fetch",
-  "version": "1.0.220",
+  "version": "1.1",
   "description": "Monkey-patch library for the native fetch API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "start": "node dist/index.js",
-    "prebuild": "rimraf dist && npm version patch",
+    "prebuild": "rimraf dist",
     "build": "tsc -p tsconfig.json"
   },
   "keywords": [

@@ -1,15 +1,19 @@
 interface IMonkeyFetchRequestConfiguration {
-  request?: (resource: RequestInfo | URL, options: RequestInit) => Promise<any[]> | any[];
+  request?: (resource: RequestInfo | URL, options: RequestInit) => Promise<[(RequestInfo | URL), RequestInit]>;
   requestError?: (error: Error) => Promise<any>;
 }
 
 interface IMonkeyFetchResponseConfiguration {
-  response?: (response: Response) => Response | Promise<IMonkeyFetchResponse>;
+  response?: (response: IMonkeyFetchResponse) => Promise<IMonkeyFetchResponse>;
   responseError?: (response: IMonkeyFetchResponse) => Promise<any>;
 }
 
+interface IMonkeyFetchMetaConfiguration {
+  debug?: boolean;
+}
+
 interface IMonkeyFetchConfiguration
-  extends IMonkeyFetchRequestConfiguration, IMonkeyFetchResponseConfiguration {
+  extends IMonkeyFetchRequestConfiguration, IMonkeyFetchResponseConfiguration, IMonkeyFetchMetaConfiguration {
 }
 
 interface IMonkeyFetchResponse extends Response {
@@ -17,20 +21,24 @@ interface IMonkeyFetchResponse extends Response {
 }
 
 export class MonkeyFetch {
-  interceptors: IMonkeyFetchConfiguration = {
+  debug: boolean = false;
+  private readonly interceptors: IMonkeyFetchConfiguration = {
     request: (resource: (RequestInfo | URL), options: RequestInit): Promise<[(RequestInfo | URL), RequestInit]> => Promise.resolve([resource, options]),
-    requestError: (error: Error) => Promise.reject(error),
-    response: (response: Response) => response,
+    requestError: (error: Error) => Promise.reject<IMonkeyFetchResponse>(error),
+    response: (response: IMonkeyFetchResponse) => Promise.resolve(response),
     responseError: (response: IMonkeyFetchResponse) => Promise.reject(response),
   };
 
   constructor() {
-    this.init();
+    this.getCurrentRuntimeContext();
   }
 
-  protected init(): void {
-    // check if current javascript context is browser or node runtime
+  /**
+   * @description Determine the current JS runtime context, either Browser or Node.js
+   */
+  private getCurrentRuntimeContext(): void {
     const isBrowserExecutionContext = typeof window !== 'undefined';
+    this.debugLog(isBrowserExecutionContext ? 'Browser runtime' : 'Node Runtime');
     if (isBrowserExecutionContext) {
       require('whatwg-fetch');
     } else {
@@ -38,46 +46,93 @@ export class MonkeyFetch {
     }
   }
 
-  protected applyInterceptors(fetch, ...args): Promise<any> {
-    const {
-      request,
-      requestError,
-      response,
-      responseError,
-    } = this.interceptors;
-
-    // init promise with original args, proceed to monkey-patch
-    let monkeyPatchedPromise: Promise<any> = Promise.resolve(args);
-
-    monkeyPatchedPromise = monkeyPatchedPromise.then(
-      (args: [(RequestInfo | URL), RequestInit]) => request(...args),
-      requestError,
-    );
-
-    monkeyPatchedPromise = monkeyPatchedPromise.then((args: [(RequestInfo | URL), RequestInit]) => {
-      const request = new Request(...args);
-      return fetch(request).then((response: IMonkeyFetchResponse): IMonkeyFetchResponse => {
-        response.request = request;
-        return response;
-      }).catch((error) => {
-        error.request = request;
-        return Promise.reject(error);
-      });
-    });
-
-    monkeyPatchedPromise = monkeyPatchedPromise.then(response).catch(responseError);
-
-    return monkeyPatchedPromise;
+  /**
+   * @description Applies the default or user-supplied `request` and/or the `requestError` interceptors
+   * @param {[(RequestInfo | URL), RequestInit]} args - the request arguments used to create the monkey-patched request
+   * @returns {Promise<IMonkeyFetchResponse>} - the Promise containing the request arguments after interceptors have been applied
+   */
+  private async applyRequestInterceptors(args: [(RequestInfo | URL), RequestInit]): Promise<[(RequestInfo | URL), RequestInit]> {
+    this.debugLog('Initial Request Args:', args);
+    const { request, requestError } = this.interceptors;
+    try {
+      return Promise.resolve(request(...args));
+    } catch (err) {
+      return Promise.reject(requestError(err));
+    }
   }
 
-  // public api to configure fetch
+  /**
+   * @description Returns the monkey-patched promise that was either resolved or rejected
+   * @param {Function} fetch - the Fetch API for the current JavaScript runtime context
+   * @param {[(RequestInfo | URL), RequestInit]} args - the request arguments used to create the monkey-patched request
+   * @returns {Promise<IMonkeyFetchResponse>} - the Promise containing the response with interceptors applied
+   */
+  private async sendInterceptedRequest(fetch: Function, args: [(RequestInfo | URL), RequestInit]): Promise<IMonkeyFetchResponse> {
+    const monkeyFetchRequest = new Request(...args);
+    try {
+      const monkeyFetchResponse: IMonkeyFetchResponse = await fetch(monkeyFetchRequest);
+      monkeyFetchResponse.request = monkeyFetchRequest;
+      this.debugLog('Intercepted Request:', monkeyFetchRequest);
+      return Promise.resolve(monkeyFetchResponse);
+    } catch (error) {
+      error.request = monkeyFetchRequest;
+      return Promise.reject(error);
+    }
+  }
+
+  /**
+   * @description Applies the default or user-supplied `response` and `responseError` interceptors
+   * @param {IMonkeyFetchResponse} initialResponse - the initial, unaltered response before interceptors are applied
+   * @returns {Promise<IMonkeyFetchResponse>} - the response with interceptors applied
+  */
+  private applyResponseInterceptors(initialResponse: IMonkeyFetchResponse): Promise<IMonkeyFetchResponse> {
+    const { response, responseError } = this.interceptors;
+    try {
+      const interceptedResponsePromise = response(initialResponse);
+      this.debugLog('Intercepted Response:', interceptedResponsePromise);
+      return Promise.resolve(interceptedResponsePromise);
+    } catch (err) {
+      return responseError(err);
+    }
+  }
+
+  /**
+   * @description Applies all interceptors to the request and response objects
+   * @param {Function} fetch - the Fetch API for the current JavaScript runtime context
+   * @param {[(RequestInfo | URL), RequestInit]} args - the request arguments used to create the monkey-patched request
+   * @returns {Promise<IMonkeyFetchResponse>} - the response with all interceptors applied
+   */
+  protected async applyInterceptors(fetch: Function, ...args: [(RequestInfo | URL), RequestInit]): Promise<any> {
+    const monkeyFetchRequestOptions = await this.applyRequestInterceptors(args);
+    const responseWithoutInterceptors = await this.sendInterceptedRequest(fetch, monkeyFetchRequestOptions);
+    return await this.applyResponseInterceptors(responseWithoutInterceptors);
+  }
+
+  /**
+   * Debugging tool for internal logging
+   * @param {any} args - Arbitrary arguments to be emitted via logger
+   * @returns {void}
+   */
+  private debugLog(...args: any): void {
+    if (this.debug) {
+      console.debug(`[DEBUG] @timwheeler/monkey-fetch | `, ...args);
+    }
+  }
+
+  /**
+   * @description Custom, user-supplied configuration that is applied to `MonkeyFetch`
+   * @param {IMonkeyFetchConfiguration} configuration - Custom configuration applied to all requests and responses
+   * @returns {void}
+   */
   configure(configuration: IMonkeyFetchConfiguration): void {
-    for (let interceptorKey in configuration) {
-      this.interceptors[interceptorKey] = configuration[interceptorKey];
+    for (let configurationKey in configuration) {
+      if (configurationKey in this.interceptors) {
+        this.interceptors[configurationKey] = configuration[configurationKey];
+      } else {
+        this[configurationKey] = configuration[configurationKey];
+      }
     }
 
-    // apply custom config to global fetch method
-    // passing all args from fetch requests to monkey-patched fetch
     globalThis.fetch = ((fetch) => (...args) =>
       this.applyInterceptors(fetch, ...args))(globalThis.fetch);
   }
