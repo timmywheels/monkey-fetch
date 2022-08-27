@@ -85,7 +85,7 @@ export class MonkeyFetch {
    * @description Applies the default or user-supplied `response` and `responseError` interceptors
    * @param {IMonkeyFetchResponse} initialResponse - the initial, unaltered response before interceptors are applied
    * @returns {Promise<IMonkeyFetchResponse>} - the response with interceptors applied
-  */
+   */
   private async applyResponseInterceptors(initialResponse: IMonkeyFetchResponse): Promise<IMonkeyFetchResponse> {
     const { response, responseError } = this.interceptors;
     try {
